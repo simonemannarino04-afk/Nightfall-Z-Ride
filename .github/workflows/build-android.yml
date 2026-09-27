@@ -1,4 +1,4 @@
-name: Build Nightfall Android APK
+name: Build Nightfall PC
 
 on:
   push:
@@ -12,32 +12,38 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  build-windows:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Export Android APK
+      - name: Export Godot builds
         uses: firebelley/godot-export@v6.0.0
         with:
           godot_executable_download_url: https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
           godot_export_templates_download_url: https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz
           relative_project_path: ./godot
           archive_output: false
-          cache: true
+          cache: false
+          export_debug: true
 
-      - name: Find APK
+      - name: Collect Windows build
         shell: bash
         run: |
-          mkdir -p artifact
-          APK=$(find . -type f -name '*.apk' | head -n 1)
-          test -n "$APK"
-          cp "$APK" artifact/Nightfall-Z-Ride.apk
+          mkdir -p artifact/windows
+          EXE=$(find "$HOME/.local/share/godot/builds" . -type f -iname '*.exe' 2>/dev/null | head -n 1)
+          if [ -z "$EXE" ]; then
+            echo 'Windows executable not found'
+            exit 1
+          fi
+          cp "$EXE" artifact/windows/Nightfall-Z-Ride.exe
+          DIR=$(dirname "$EXE")
+          find "$DIR" -maxdepth 1 -type f ! -name '*.exe' -exec cp {} artifact/windows/ \; || true
 
-      - name: Upload APK
+      - name: Upload Windows game
         uses: actions/upload-artifact@v4
         with:
-          name: Nightfall-Z-Ride-Android
-          path: artifact/Nightfall-Z-Ride.apk
+          name: Nightfall-Z-Ride-Windows
+          path: artifact/windows/
           if-no-files-found: error

@@ -1,17 +1,9 @@
-# Nightfall Z Ride 🧟🚙
+# Boston: Quarantine
 
-Prototipo iniziale del gioco mobile cooperativo zombie.
+Reboot completo mobile del precedente progetto Nightfall-Z-Ride.
 
-## Visione
-- Partite cooperative fino a 4 giocatori
-- 1 giocatore guida il veicolo
-- 3 giocatori difendono il mezzo dagli zombie
-- Ruoli assegnati a inizio partita
-- Percorsi cittadini ed extraurbani
-- Armi e outfit personalizzabili
-- Atmosfera notturna e survival
+## Direzione
+Zombie survival 2D/2.5D ambientato a Boston, con campagna a missioni, combattimento touch, armi, nemici differenziati, personalizzazione e coop pianificata fino a 3 giocatori.
 
-## Prima milestone
-Creare una demo mobile giocabile che provi il ciclo base: veicolo in movimento, orde di zombie, combattimento, salute del mezzo, punteggio e fine partita.
-
-> Il multiplayer online reale verrà aggiunto in una fase successiva: la prima demo serve a validare il gameplay.
+## Reboot 2026
+Il repository precedente viene sostituito dal nuovo progetto Boston: Quarantine.

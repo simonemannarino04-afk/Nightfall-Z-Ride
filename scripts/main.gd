@@ -1,73 +1,152 @@
 extends Node2D
 
-var player := Vector2(640, 430)
-var zombies := []
+const W := 1280.0
+const H := 720.0
+var player := Vector2(640, 470)
+var zombies: Array[Dictionary] = []
+var tracers: Array[Dictionary] = []
+var particles: Array[Dictionary] = []
 var hp := 100
 var ammo := 30
+var reserve := 120
 var score := 0
+var wave := 1
+var kills := 0
+var muzzle := 0.0
+var shake := 0.0
+var time := 0.0
 
 func _ready():
-    for i in range(12):
-        zombies.append(Vector2(100 + (i * 91) % 1100, 150 + (i * 137) % 380))
+    randomize()
+    spawn_wave()
     queue_redraw()
 
+func spawn_wave():
+    for i in range(8 + wave * 3):
+        var edge := randi() % 3
+        var p := Vector2(randf_range(40,1240), randf_range(175,430))
+        if edge == 0: p.x = randf_range(20,130)
+        elif edge == 1: p.x = randf_range(1150,1260)
+        else: p.y = randf_range(165,230)
+        zombies.append({"p":p,"hp":2 + wave/3,"type":randi()%5,"phase":randf()*6.28,"hit":0.0})
+
 func _process(delta):
-    var dir := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
-    player += dir * 230.0 * delta
-    player.x = clamp(player.x, 40.0, 1240.0)
-    player.y = clamp(player.y, 100.0, 680.0)
-    for i in range(zombies.size()):
-        var d: Vector2 = (player - zombies[i]).normalized()
-        zombies[i] += d * (45.0 + i % 4 * 8.0) * delta
-        if zombies[i].distance_to(player) < 34:
-            hp = max(0, hp - 1)
+    time += delta
+    muzzle = maxf(0.0,muzzle-delta*8.0)
+    shake = maxf(0.0,shake-delta*18.0)
+    var dir := Input.get_vector("ui_left","ui_right","ui_up","ui_down")
+    player += dir * 245.0 * delta
+    player.x = clampf(player.x,55,1225)
+    player.y = clampf(player.y,310,635)
+    for z in zombies:
+        var d: Vector2 = (player-z.p).normalized()
+        z.p += d * (38.0 + z.type*6.0 + wave*2.0) * delta
+        z.hit = maxf(0.0,z.hit-delta*5.0)
+        if z.p.distance_to(player) < 38: hp = maxi(0,hp-int(18*delta))
+    for t in tracers: t.life -= delta
+    tracers = tracers.filter(func(t): return t.life>0)
+    for p in particles:
+        p.p += p.v*delta; p.v *= 0.92; p.life -= delta
+    particles = particles.filter(func(p): return p.life>0)
+    if zombies.is_empty(): wave += 1; spawn_wave()
     queue_redraw()
 
 func _input(event):
-    if event is InputEventScreenTouch and event.pressed:
-        shoot(event.position)
-    elif event is InputEventMouseButton and event.pressed:
-        shoot(event.position)
+    if event is InputEventKey and event.pressed and event.keycode == KEY_R: reload()
+    if event is InputEventScreenTouch and event.pressed: shoot(event.position)
+    elif event is InputEventMouseButton and event.pressed: shoot(event.position)
+
+func reload():
+    var need := 30-ammo
+    var take := mini(need,reserve)
+    ammo += take; reserve -= take
 
 func shoot(target: Vector2):
-    if ammo <= 0: return
-    ammo -= 1
-    var best := -1
-    var best_dist := 90.0
+    if ammo<=0: reload(); return
+    ammo-=1; muzzle=1.0; shake=5.0
+    var origin := player+Vector2(31,-9)
+    tracers.append({"a":origin,"b":target,"life":0.09})
+    var best := -1; var best_dist := 54.0
     for i in range(zombies.size()):
-        var d: float = zombies[i].distance_to(target)
-        if d < best_dist:
-            best_dist = d
-            best = i
-    if best >= 0:
-        zombies.remove_at(best)
-        score += 100
-    queue_redraw()
+        var d: float = zombies[i].p.distance_to(target)
+        if d<best_dist: best_dist=d; best=i
+    if best>=0:
+        zombies[best].hp -= 1; zombies[best].hit=1.0
+        burst(zombies[best].p)
+        if zombies[best].hp<=0:
+            zombies.remove_at(best); kills+=1; score+=100+wave*15
+
+func burst(at: Vector2):
+    for i in range(7):
+        particles.append({"p":at,"v":Vector2(randf_range(-90,90),randf_range(-100,40)),"life":randf_range(.2,.5)})
 
 func _draw():
-    # Boston skyline / quarantine atmosphere
-    draw_rect(Rect2(0,0,1280,720), Color("101820"))
-    draw_rect(Rect2(0,500,1280,220), Color("20252a"))
-    for x in range(0,1280,90):
-        var h = 100 + (x * 7) % 190
-        draw_rect(Rect2(x,500-h,72,h), Color("17232d"))
-        for wy in range(int(520-h),480,28):
-            draw_rect(Rect2(x+12,wy,8,12), Color("c27b42"))
-    draw_line(Vector2(0,520),Vector2(1280,520),Color("b53a2f"),4)
-    # Player
-    draw_circle(player,24,Color("d7c0a8"))
-    draw_rect(Rect2(player.x-18,player.y+18,36,46),Color("344653"))
-    draw_line(player+Vector2(12,28),player+Vector2(45,12),Color("b7b9ba"),8)
-    # Zombies
-    for i in range(zombies.size()):
-        var z: Vector2 = zombies[i]
-        var body = Color("5b7152") if i%3 else Color("77524e")
-        draw_circle(z,20,Color("8a9a74"))
-        draw_rect(Rect2(z.x-16,z.y+16,32,38),body)
-        draw_circle(z+Vector2(-7,-2),3,Color("e44b3f"))
-        draw_circle(z+Vector2(7,-2),3,Color("e44b3f"))
-    # HUD
-    draw_rect(Rect2(20,20,330,72),Color(0.02,0.03,0.04,0.88))
-    draw_string(ThemeDB.fallback_font,Vector2(38,48),"BOSTON: QUARANTINE",HORIZONTAL_ALIGNMENT_LEFT,250,24,Color("f1f1ee"))
-    draw_string(ThemeDB.fallback_font,Vector2(38,78),"HP %d   AMMO %d   SCORE %d" % [hp,ammo,score],HORIZONTAL_ALIGNMENT_LEFT,-1,18,Color("e3483e"))
-    draw_string(ThemeDB.fallback_font,Vector2(900,45),"MISSIONE 1  •  EVACUAZIONE",HORIZONTAL_ALIGNMENT_LEFT,-1,18,Color.WHITE)
+    var cam := Vector2(randf_range(-shake,shake),randf_range(-shake,shake))
+    draw_set_transform(cam)
+    # cinematic dusk sky
+    draw_rect(Rect2(0,0,W,H),Color("101820"))
+    for y in range(0,430,18):
+        var k=float(y)/430.0
+        draw_rect(Rect2(0,y,W,19),Color(0.035+0.045*k,0.065+0.055*k,0.09+0.06*k))
+    # distant Boston-inspired skyline
+    draw_circle(Vector2(1050,125),55,Color(0.72,0.62,0.48,0.12))
+    for x in range(-20,1320,74):
+        var h=95+int(abs(sin(float(x)*.017))*175)
+        draw_rect(Rect2(x,420-h,60,h),Color("17232d"))
+        draw_rect(Rect2(x+6,420-h+8,48,4),Color("263844"))
+        for wy in range(440-h,405,25):
+            if (x+wy)%3: draw_rect(Rect2(x+12,wy,7,10),Color(0.72,0.46,0.27,0.65))
+    # quarantine street perspective
+    draw_colored_polygon(PackedVector2Array([Vector2(0,390),Vector2(1280,390),Vector2(1280,720),Vector2(0,720)]),Color("252b2e"))
+    for y in range(410,720,54): draw_line(Vector2(0,y),Vector2(1280,y+18),Color(0.11,0.12,0.12),2)
+    draw_colored_polygon(PackedVector2Array([Vector2(570,410),Vector2(710,410),Vector2(920,720),Vector2(350,720)]),Color("303537"))
+    for y in range(455,700,90): draw_rect(Rect2(625,y,30,45),Color(0.78,0.66,0.35,0.55))
+    # barriers, abandoned cars, lamps
+    for x in [120,1040]:
+        draw_rect(Rect2(x,370,125,28),Color("d9d0b5")); draw_rect(Rect2(x+8,376,109,6),Color("b84a3d"))
+    draw_car(Vector2(940,470),Color("33444f")); draw_car(Vector2(210,555),Color("593d38"))
+    for x in [70,1190]:
+        draw_line(Vector2(x,190),Vector2(x,500),Color("202529"),10); draw_circle(Vector2(x,205),15,Color("e8c77b"))
+    # zombies with layered silhouettes, limbs and clothing
+    for z in zombies: draw_zombie(z)
+    draw_survivor(player)
+    for t in tracers: draw_line(t.a,t.b,Color(1,.82,.42,t.life/.09),2)
+    for p in particles: draw_circle(p.p,3,Color(.55,.08,.06,clampf(p.life*3,0,1)))
+    draw_set_transform(Vector2.ZERO)
+    draw_hud()
+
+func draw_car(p:Vector2,c:Color):
+    draw_rect(Rect2(p.x-58,p.y-20,116,39),c)
+    draw_colored_polygon(PackedVector2Array([p+Vector2(-36,-20),p+Vector2(-18,-43),p+Vector2(31,-43),p+Vector2(48,-20)]),c.lightened(.08))
+    draw_rect(Rect2(p.x-14,p.y-39,38,17),Color("17242b")); draw_circle(p+Vector2(-38,20),14,Color("111315")); draw_circle(p+Vector2(38,20),14,Color("111315"))
+
+func draw_survivor(p:Vector2):
+    var bob=sin(time*9.0)*2.0
+    var q=p+Vector2(0,bob)
+    draw_circle(q+Vector2(0,-34),15,Color("c99d7e"))
+    draw_rect(Rect2(q.x-17,q.y-20,34,45),Color("263a48"))
+    draw_rect(Rect2(q.x-14,q.y-14,28,8),Color("485a62"))
+    draw_line(q+Vector2(-10,23),q+Vector2(-15,48),Color("202a31"),10); draw_line(q+Vector2(10,23),q+Vector2(15,48),Color("202a31"),10)
+    draw_line(q+Vector2(10,-8),q+Vector2(34,-13),Color("c99d7e"),8)
+    draw_line(q+Vector2(24,-13),q+Vector2(58,-17),Color("1a1d20"),7); draw_rect(Rect2(q.x+48,q.y-20,23,7),Color("343b40"))
+    if muzzle>0: draw_circle(q+Vector2(74,-17),9*muzzle,Color(1,.67,.22,.8))
+
+func draw_zombie(z:Dictionary):
+    var p:Vector2=z.p; var gait=sin(time*6.0+z.phase)*7.0
+    var skin=[Color("77806b"),Color("6f7562"),Color("82746b"),Color("68776b"),Color("817e68")][z.type]
+    var cloth=[Color("4d5960"),Color("59433f"),Color("384b42"),Color("5a5548"),Color("3f4654")][z.type]
+    if z.hit>0: skin=skin.lerp(Color("d7c1aa"),z.hit)
+    draw_line(p+Vector2(-7,20),p+Vector2(-14+gait,48),cloth.darkened(.25),10); draw_line(p+Vector2(7,20),p+Vector2(14-gait,48),cloth.darkened(.25),10)
+    draw_rect(Rect2(p.x-15,p.y-16,30,39),cloth)
+    draw_line(p+Vector2(-12,-8),p+Vector2(-29-gait*.3,14),skin,8); draw_line(p+Vector2(12,-8),p+Vector2(30+gait*.3,8),skin,8)
+    draw_circle(p+Vector2(0,-29),15,skin); draw_circle(p+Vector2(-6,-31),2,Color("d84b3e")); draw_circle(p+Vector2(6,-31),2,Color("d84b3e"))
+    draw_line(p+Vector2(-5,-21),p+Vector2(7,-20),Color("332627"),2)
+
+func draw_hud():
+    draw_rect(Rect2(18,18,360,86),Color(0.015,0.022,0.027,.91))
+    draw_string(ThemeDB.fallback_font,Vector2(36,50),"BOSTON: QUARANTINE",HORIZONTAL_ALIGNMENT_LEFT,-1,25,Color("f2eee7"))
+    draw_string(ThemeDB.fallback_font,Vector2(36,82),"HP %03d   5.56  %02d / %03d"%[hp,ammo,reserve],HORIZONTAL_ALIGNMENT_LEFT,-1,18,Color("e25a4e"))
+    draw_rect(Rect2(36,91,220,5),Color("402b2b")); draw_rect(Rect2(36,91,220.0*hp/100.0,5),Color("c84b43"))
+    draw_string(ThemeDB.fallback_font,Vector2(955,42),"WAVE %02d   KILLS %03d"%[wave,kills],HORIZONTAL_ALIGNMENT_LEFT,-1,18,Color.WHITE)
+    draw_string(ThemeDB.fallback_font,Vector2(955,69),"EVACUATION CORRIDOR",HORIZONTAL_ALIGNMENT_LEFT,-1,15,Color("d5b36c"))
+    draw_string(ThemeDB.fallback_font,Vector2(36,690),"MOVE: ARROWS/WASD   •   FIRE: CLICK/TAP   •   RELOAD: R",HORIZONTAL_ALIGNMENT_LEFT,-1,14,Color(1,1,1,.62))

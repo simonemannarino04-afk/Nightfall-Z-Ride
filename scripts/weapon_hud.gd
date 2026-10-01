@@ -1,5 +1,5 @@
 class_name WeaponHUD
-extends CanvasLayer
+extends Control
 
 var weapon_name := "M4A1"
 var rarity := "UNCOMMON"

@@ -1,0 +1,19 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource path="res://scripts/boss.gd" type="Script" id="1"]
+
+[sub_resource type="CapsuleShape2D" id="BossShape"]
+radius = 27.0
+height = 88.0
+
+[node name="Boss" type="CharacterBody2D"]
+script = ExtResource("1")
+z_index = 8
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0,10)
+shape = SubResource("BossShape")
+
+[node name="VisualRoot" type="Node2D" parent="."]
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]

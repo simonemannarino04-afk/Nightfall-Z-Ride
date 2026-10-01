@@ -57,9 +57,9 @@ func _process(delta):
     player.y = clampf(player.y,310,635)
     for z in zombies:
         var d: Vector2 = (player-z.p).normalized()
-        var speed := 38.0 + min(z.type,4)*6.0 + wave*2.0
-        if z.type == 5: speed = 92.0 + wave
-        if z.type == 6: speed = 27.0 + wave
+        var speed: float = 38.0 + float(mini(int(z.type),4))*6.0 + float(wave)*2.0
+        if z.type == 5: speed = 92.0 + float(wave)
+        if z.type == 6: speed = 27.0 + float(wave)
         z.p += d * speed * delta
         z.hit = maxf(0.0,z.hit-delta*5.0)
         if z.p.distance_to(player) < 38:
@@ -197,7 +197,7 @@ func draw_pickup(pick:Dictionary):
 
 func draw_hud():
     draw_rect(Rect2(18,18,390,86),Color(0.015,0.022,0.027,.91))
-    draw_string(ThemeDB.fallback_font,Vector2(36,50),"BOSTON: APOCALYPSE",HORIZONTAL_ALIGNMENT_LEFT,-1,25,Color("f2eee7"))
+    draw_string(ThemeDB.fallback_font,Vector2(36,50),"BOSTON: QUARANTINE",HORIZONTAL_ALIGNMENT_LEFT,-1,25,Color("f2eee7"))
     draw_string(ThemeDB.fallback_font,Vector2(36,82),"HP %03d   5.56  %02d / %03d"%[hp,ammo,reserve],HORIZONTAL_ALIGNMENT_LEFT,-1,18,Color("e25a4e"))
     draw_rect(Rect2(36,91,220,5),Color("402b2b")); draw_rect(Rect2(36,91,220.0*hp/100.0,5),Color("c84b43"))
     draw_string(ThemeDB.fallback_font,Vector2(930,42),"WAVE %02d   KILLS %03d"%[wave,kills],HORIZONTAL_ALIGNMENT_LEFT,-1,18,Color.WHITE)
@@ -208,5 +208,5 @@ func draw_hud():
 func draw_game_over():
     draw_rect(Rect2(0,0,W,H),Color(0,0,0,.72))
     draw_string(ThemeDB.fallback_font,Vector2(455,300),"BOSTON HAS FALLEN",HORIZONTAL_ALIGNMENT_LEFT,-1,42,Color("e9e4dc"))
-    draw_string(ThemeDB.fallback_font,Vector2(510,350),"SCORE %d  •  KILLS %d"%[score,kills],HORIZONTAL_ALIGNMENT_LEFT,-1,22,Color("d15a50"))
-    draw_string(ThemeDB.fallback_font,Vector2(505,405),"PRESS ENTER TO REDEPLOY",HORIZONTAL_ALIGNMENT_LEFT,-1,18,Color.WHITE)
+    draw_string(ThemeDB.fallback_font,Vector2(510,350),"SCORE %d   •   WAVE %d"%[score,wave],HORIZONTAL_ALIGNMENT_LEFT,-1,20,Color("d4b16a"))
+    draw_string(ThemeDB.fallback_font,Vector2(490,400),"PRESS ENTER TO RESTART",HORIZONTAL_ALIGNMENT_LEFT,-1,17,Color.WHITE)

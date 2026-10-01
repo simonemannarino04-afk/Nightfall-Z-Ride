@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  validate:
+  validate-and-build-android:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,8 +22,29 @@ jobs:
           sudo mv Godot_v4.3-stable_linux.x86_64 /usr/local/bin/godot
           godot --version
 
+      - name: Install Godot export templates
+        run: |
+          wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
+          mkdir -p ~/.local/share/godot/export_templates/4.3.stable
+          unzip -q Godot_v4.3-stable_export_templates.tpz -d /tmp/godot-templates
+          cp -r /tmp/godot-templates/templates/* ~/.local/share/godot/export_templates/4.3.stable/
+
       - name: Import project
         run: godot --headless --editor --path . --quit-after 5
 
       - name: Validate startup scene
         run: godot --headless --path . --quit-after 5
+
+      - name: Build Android APK
+        run: |
+          mkdir -p build
+          godot --headless --path . --export-debug "Android" build/Boston-Quarantine.apk
+          test -f build/Boston-Quarantine.apk
+
+      - name: Upload Boston Quarantine APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Boston-Quarantine-Android
+          path: build/Boston-Quarantine.apk
+          if-no-files-found: error
+          retention-days: 30

@@ -1,5 +1,5 @@
 [application]
-config/name="Boston: Quarantine"
+config/name="Boston: Apocalypse"
 run/main_scene="res://scenes/main.tscn"
 
 [display]

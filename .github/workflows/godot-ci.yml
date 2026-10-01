@@ -30,6 +30,8 @@ jobs:
         run: |
           yes | sdkmanager --sdk_root="$ANDROID_HOME" --licenses >/dev/null || true
           sdkmanager --sdk_root="$ANDROID_HOME" "platform-tools" "build-tools;34.0.0" "platforms;android-34" "cmake;3.10.2.4988404" "ndk;23.2.8568313"
+          adb start-server
+          adb version
 
       - name: Install Godot 4.3
         run: |
@@ -44,6 +46,7 @@ jobs:
           mkdir -p ~/.local/share/godot/export_templates/4.3.stable
           unzip -q Godot_v4.3-stable_export_templates.tpz -d /tmp/godot-templates
           cp -r /tmp/godot-templates/templates/* ~/.local/share/godot/export_templates/4.3.stable/
+          ls -lh ~/.local/share/godot/export_templates/4.3.stable/android_debug.apk
 
       - name: Configure Godot Android paths
         run: |
@@ -64,12 +67,25 @@ jobs:
           echo "GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android" >> "$GITHUB_ENV"
 
       - name: Import project
-        run: godot --headless --editor --path . --quit-after 5
+        run: godot --headless --editor --verbose --path . --quit-after 5
+
+      - name: Android export diagnostics
+        run: |
+          echo '=== export preset ==='
+          cat export_presets.cfg
+          echo '=== SDK ==='
+          command -v adb
+          adb devices
+          test -f "$ANDROID_HOME/build-tools/34.0.0/apksigner"
+          test -f "$ANDROID_HOME/platforms/android-34/android.jar"
+          test -x "$JAVA_HOME/bin/java"
+          echo '=== Godot settings ==='
+          cat ~/.config/godot/editor_settings-4.tres
 
       - name: Build Android APK
         run: |
           mkdir -p build
-          godot --headless --verbose --path . --export-debug "Android" build/Boston-Quarantine.apk
+          godot --headless --editor --verbose --path . --export-debug "Android" build/Boston-Quarantine.apk
           test -s build/Boston-Quarantine.apk
           ls -lh build/Boston-Quarantine.apk
 

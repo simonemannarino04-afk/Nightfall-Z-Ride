@@ -1,5 +1,5 @@
 class_name MobileHUD
-extends CanvasLayer
+extends Control
 
 signal move_vector_changed(value:Vector2)
 signal fire_pressed(target:Vector2)

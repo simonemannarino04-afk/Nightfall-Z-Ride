@@ -1,0 +1,65 @@
+name: Build Boston Quarantine Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - '**/*.gd'
+      - '**/*.tscn'
+      - 'project.godot'
+      - 'export_presets.cfg'
+      - '.github/workflows/build-windows.yml'
+
+jobs:
+  build-windows:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Godot 4.5.1 and export templates
+        shell: bash
+        run: |
+          set -euxo pipefail
+          GODOT_VERSION=4.5.1
+          wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -O /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo mv "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+          sudo chmod +x /usr/local/bin/godot
+          wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" -O /tmp/templates.tpz
+          mkdir -p "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          unzip -q /tmp/templates.tpz -d /tmp/templates
+          cp -r /tmp/templates/templates/* "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable/"
+          godot --version
+
+      - name: Validate project
+        shell: bash
+        run: |
+          set -euxo pipefail
+          godot --headless --path . --editor --quit
+
+      - name: Export Windows x64
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p build
+          godot --headless --path . --export-release "Windows Desktop" build/BostonQuarantine.exe
+          test -f build/BostonQuarantine.exe
+          ls -lh build
+
+      - name: Package game
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd build
+          zip -9 BostonQuarantine-PC.zip BostonQuarantine.exe BostonQuarantine.pck || zip -9 BostonQuarantine-PC.zip BostonQuarantine.exe
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: BostonQuarantine-PC
+          path: build/BostonQuarantine-PC.zip
+          if-no-files-found: error
+          retention-days: 14

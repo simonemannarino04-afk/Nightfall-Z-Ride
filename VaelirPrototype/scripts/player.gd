@@ -2,11 +2,16 @@ extends CharacterBody3D
 
 signal health_changed(current: float, maximum: float)
 signal sword_whisper(text: String)
+signal interact_requested
+signal ability_requested
+signal target_cycle_requested(direction: int)
+signal target_lock_requested
 
 var input_enabled := false
 var max_health := 100.0
 var health := 100.0
 var speed := 6.5
+var sprint_speed := 8.4
 var dodge_speed := 13.0
 var gravity := 18.0
 var yaw := 0.0
@@ -14,10 +19,14 @@ var pitch := -0.18
 var attack_cooldown := 0.0
 var dodge_cooldown := 0.0
 var sword_unlocked := false
+var guarding := false
 var camera_pivot: Node3D
 var camera: Camera3D
 var sword_root: Node3D
 var body_root: Node3D
+
+const JOY_DEADZONE := 0.18
+const JOY_LOOK_SPEED := 2.6
 
 func _ready() -> void:
 	_build_visuals()
@@ -29,16 +38,34 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and input_enabled:
 		yaw -= event.relative.x * 0.003
 		pitch = clamp(pitch - event.relative.y * 0.0025, -0.75, 0.35)
-		rotation.y = yaw
-		camera_pivot.rotation.x = pitch
+		_apply_camera_rotation()
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED else Input.MOUSE_MODE_CAPTURED
 	if input_enabled and sword_unlocked and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		_attack()
+		_attack(false)
+	if input_enabled and event is InputEventJoypadButton and event.pressed:
+		match event.button_index:
+			JOY_BUTTON_X:
+				if sword_unlocked: _attack(false)
+			JOY_BUTTON_B:
+				_try_dodge()
+			JOY_BUTTON_A:
+				interact_requested.emit()
+			JOY_BUTTON_Y:
+				ability_requested.emit()
+				if sword_unlocked: sword_whisper.emit("Il sangue ricorda.")
+			JOY_BUTTON_LEFT_SHOULDER:
+				target_cycle_requested.emit(-1)
+			JOY_BUTTON_RIGHT_SHOULDER:
+				target_cycle_requested.emit(1)
+			JOY_BUTTON_RIGHT_STICK:
+				target_lock_requested.emit()
 
 func _physics_process(delta: float) -> void:
 	attack_cooldown = max(0.0, attack_cooldown - delta)
 	dodge_cooldown = max(0.0, dodge_cooldown - delta)
+	_update_controller_camera(delta)
+	guarding = input_enabled and Input.get_joy_axis(0, JOY_AXIS_TRIGGER_LEFT) > 0.45
 	if not is_on_floor():
 		velocity.y -= gravity * delta
 	else:
@@ -48,43 +75,83 @@ func _physics_process(delta: float) -> void:
 		velocity.z = move_toward(velocity.z, 0.0, speed * delta * 5.0)
 		move_and_slide()
 		return
-	var x := float(Input.is_key_pressed(KEY_D)) - float(Input.is_key_pressed(KEY_A))
-	var z := float(Input.is_key_pressed(KEY_S)) - float(Input.is_key_pressed(KEY_W))
+
+	var keyboard_x := float(Input.is_key_pressed(KEY_D)) - float(Input.is_key_pressed(KEY_A))
+	var keyboard_z := float(Input.is_key_pressed(KEY_S)) - float(Input.is_key_pressed(KEY_W))
+	var joy_x := _deadzone(Input.get_joy_axis(0, JOY_AXIS_LEFT_X))
+	var joy_z := _deadzone(Input.get_joy_axis(0, JOY_AXIS_LEFT_Y))
+	var x := joy_x if abs(joy_x) > abs(keyboard_x) else keyboard_x
+	var z := joy_z if abs(joy_z) > abs(keyboard_z) else keyboard_z
 	var direction := (transform.basis * Vector3(x, 0.0, z)).normalized()
+
 	var current_speed := speed
-	if Input.is_key_pressed(KEY_SHIFT) and dodge_cooldown <= 0.0 and direction.length() > 0.1:
-		current_speed = dodge_speed
-		dodge_cooldown = 0.85
+	var sprinting := Input.is_key_pressed(KEY_SHIFT) or Input.is_joy_button_pressed(0, JOY_BUTTON_LEFT_STICK)
+	if sprinting and direction.length() > 0.1:
+		current_speed = sprint_speed
 	velocity.x = move_toward(velocity.x, direction.x * current_speed, current_speed * delta * 8.0)
 	velocity.z = move_toward(velocity.z, direction.z * current_speed, current_speed * delta * 8.0)
 	move_and_slide()
+
 	if direction.length() > 0.1:
 		body_root.rotation.z = lerp(body_root.rotation.z, -x * 0.06, delta * 7.0)
 	else:
 		body_root.rotation.z = lerp(body_root.rotation.z, 0.0, delta * 7.0)
-	if Input.is_key_pressed(KEY_SPACE) and sword_unlocked:
-		_attack()
 
-func _attack() -> void:
+	if Input.is_key_pressed(KEY_SPACE) and sword_unlocked:
+		_attack(false)
+	if sword_unlocked and Input.get_joy_axis(0, JOY_AXIS_TRIGGER_RIGHT) > 0.72:
+		_attack(true)
+
+func _update_controller_camera(delta: float) -> void:
+	if not input_enabled:
+		return
+	var look_x := _deadzone(Input.get_joy_axis(0, JOY_AXIS_RIGHT_X))
+	var look_y := _deadzone(Input.get_joy_axis(0, JOY_AXIS_RIGHT_Y))
+	if abs(look_x) > 0.0 or abs(look_y) > 0.0:
+		yaw -= look_x * JOY_LOOK_SPEED * delta
+		pitch = clamp(pitch - look_y * JOY_LOOK_SPEED * 0.75 * delta, -0.75, 0.35)
+		_apply_camera_rotation()
+
+func _apply_camera_rotation() -> void:
+	rotation.y = yaw
+	if camera_pivot:
+		camera_pivot.rotation.x = pitch
+
+func _try_dodge() -> void:
+	if dodge_cooldown > 0.0:
+		return
+	var x := _deadzone(Input.get_joy_axis(0, JOY_AXIS_LEFT_X))
+	var z := _deadzone(Input.get_joy_axis(0, JOY_AXIS_LEFT_Y))
+	var direction := (transform.basis * Vector3(x, 0.0, z)).normalized()
+	if direction.length() < 0.1:
+		direction = -global_transform.basis.z
+	dodge_cooldown = 0.85
+	velocity.x = direction.x * dodge_speed
+	velocity.z = direction.z * dodge_speed
+
+func _attack(heavy: bool) -> void:
 	if attack_cooldown > 0.0:
 		return
-	attack_cooldown = 0.48
+	attack_cooldown = 0.78 if heavy else 0.48
+	var damage := 52.0 if heavy else 34.0
+	var swing := -1.55 if heavy else -1.25
 	var tween := create_tween()
-	tween.tween_property(sword_root, "rotation:z", -1.25, 0.11)
-	tween.tween_property(sword_root, "rotation:z", 0.15, 0.2)
+	tween.tween_property(sword_root, "rotation:z", swing, 0.16 if heavy else 0.11)
+	tween.tween_property(sword_root, "rotation:z", 0.15, 0.30 if heavy else 0.2)
 	for enemy_node in get_tree().get_nodes_in_group("enemies"):
 		if enemy_node is Node3D:
 			var enemy := enemy_node as Node3D
-			if global_position.distance_to(enemy.global_position) < 2.7:
+			if global_position.distance_to(enemy.global_position) < 2.9:
 				var facing: Vector3 = -global_transform.basis.z
 				var to_enemy: Vector3 = (enemy.global_position - global_position).normalized()
 				if facing.dot(to_enemy) > 0.15 and enemy.has_method("take_damage"):
-					enemy.call("take_damage", 34.0)
+					enemy.call("take_damage", damage)
 
 func take_damage(amount: float) -> void:
 	if not input_enabled:
 		return
-	health = max(0.0, health - amount)
+	var applied := amount * (0.35 if guarding else 1.0)
+	health = max(0.0, health - applied)
 	health_changed.emit(health, max_health)
 	var tween := create_tween()
 	tween.tween_property(body_root, "scale", Vector3(1.08, 0.92, 1.08), 0.06)
@@ -98,6 +165,11 @@ func unlock_sword() -> void:
 	sword_unlocked = true
 	sword_root.visible = true
 	sword_whisper.emit("Ti ho aspettata... sangue del mio sangue.")
+
+func _deadzone(value: float) -> float:
+	if abs(value) < JOY_DEADZONE:
+		return 0.0
+	return value
 
 func _build_collision() -> void:
 	var shape := CollisionShape3D.new()

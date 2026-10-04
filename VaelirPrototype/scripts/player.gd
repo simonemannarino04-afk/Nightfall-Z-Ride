@@ -72,12 +72,14 @@ func _attack() -> void:
 	var tween := create_tween()
 	tween.tween_property(sword_root, "rotation:z", -1.25, 0.11)
 	tween.tween_property(sword_root, "rotation:z", 0.15, 0.2)
-	for enemy in get_tree().get_nodes_in_group("enemies"):
-		if enemy is Node3D and global_position.distance_to(enemy.global_position) < 2.7:
-			var facing := -global_transform.basis.z
-			var to_enemy := (enemy.global_position - global_position).normalized()
-			if facing.dot(to_enemy) > 0.15 and enemy.has_method("take_damage"):
-				enemy.take_damage(34.0)
+	for enemy_node in get_tree().get_nodes_in_group("enemies"):
+		if enemy_node is Node3D:
+			var enemy := enemy_node as Node3D
+			if global_position.distance_to(enemy.global_position) < 2.7:
+				var facing: Vector3 = -global_transform.basis.z
+				var to_enemy: Vector3 = (enemy.global_position - global_position).normalized()
+				if facing.dot(to_enemy) > 0.15 and enemy.has_method("take_damage"):
+					enemy.call("take_damage", 34.0)
 
 func take_damage(amount: float) -> void:
 	if not input_enabled:

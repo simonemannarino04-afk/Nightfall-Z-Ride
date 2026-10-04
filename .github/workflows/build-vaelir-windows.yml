@@ -31,12 +31,12 @@ jobs:
 
       - name: Export Windows build
         run: |
-          mkdir -p build
+          mkdir -p VaelirPrototype/build
           ./Godot_v4.5.1-stable_linux.x86_64 --headless --path VaelirPrototype --export-release "Windows Desktop" build/Vaelir-Bloodbound.exe
 
       - name: Upload Windows build
         uses: actions/upload-artifact@v4
         with:
           name: Vaelir-Bloodbound-Windows
-          path: build/
+          path: VaelirPrototype/build/
           if-no-files-found: error

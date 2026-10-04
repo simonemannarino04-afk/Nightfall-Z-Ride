@@ -178,7 +178,7 @@ func _create_tree(pos: Vector3, s: float) -> void:
 	var root:=Node3D.new(); root.position=pos; root.scale=Vector3.ONE*s; add_child(root)
 	var trunk:=MeshInstance3D.new(); var cyl:=CylinderMesh.new(); cyl.top_radius=.18; cyl.bottom_radius=.28; cyl.height=3.8; trunk.mesh=cyl; trunk.position.y=1.9; trunk.material_override=_mat(Color("2f2624")); root.add_child(trunk)
 	for j in 3:
-		var crown:=MeshInstance3D.new(); var cone:=ConeMesh.new(); cone.top_radius=0.0; cone.bottom_radius=1.6-j*.22; cone.height=2.5; crown.mesh=cone; crown.position.y=3.3+j*1.05; crown.material_override=_mat(Color("17231d")); root.add_child(crown)
+		var crown:=MeshInstance3D.new(); var cone:=CylinderMesh.new(); cone.top_radius=0.0; cone.bottom_radius=1.6-j*.22; cone.height=2.5; crown.mesh=cone; crown.position.y=3.3+j*1.05; crown.material_override=_mat(Color("17231d")); root.add_child(crown)
 
 func _create_road(pos: Vector3, size: Vector3) -> void:
 	var mi:=MeshInstance3D.new(); var b:=BoxMesh.new(); b.size=size; mi.mesh=b; mi.position=pos; mi.material_override=_mat(Color("35302b")); add_child(mi)
@@ -190,7 +190,7 @@ func _create_well(pos: Vector3) -> void:
 
 func _create_bonfire(pos: Vector3) -> void:
 	var light:=OmniLight3D.new(); light.position=pos+Vector3(0,1.1,0); light.light_color=Color("ff7d36"); light.light_energy=4.0; light.omni_range=8.0; add_child(light)
-	var flame:=MeshInstance3D.new(); var cone:=ConeMesh.new(); cone.bottom_radius=.45; cone.height=1.1; flame.mesh=cone; flame.position=pos+Vector3(0,.55,0); flame.material_override=_mat(Color("7b250d"),0,.4,Color("ff5722")); add_child(flame)
+	var flame:=MeshInstance3D.new(); var cone:=CylinderMesh.new(); cone.top_radius=0.0; cone.bottom_radius=.45; cone.height=1.1; flame.mesh=cone; flame.position=pos+Vector3(0,.55,0); flame.material_override=_mat(Color("7b250d"),0,.4,Color("ff5722")); add_child(flame)
 
 func _create_archway(pos: Vector3) -> void:
 	_static_box(pos+Vector3(-2.4,2.2,0),Vector3(1.0,4.4,1.2),Color("47443f")); _static_box(pos+Vector3(2.4,2.2,0),Vector3(1.0,4.4,1.2),Color("47443f")); _static_box(pos+Vector3(0,4.4,0),Vector3(5.8,1.0,1.2),Color("47443f"))

@@ -26,13 +26,25 @@ jobs:
           unzip -q Godot_v4.5.1-stable_export_templates.tpz -d /tmp/godot-templates
           cp -r /tmp/godot-templates/templates/* "$HOME/.local/share/godot/export_templates/4.5.1.stable/"
 
-      - name: Validate Vaelir project
-        run: ./Godot_v4.5.1-stable_linux.x86_64 --headless --path VaelirPrototype --editor --quit
-
-      - name: Export Windows build
+      - name: Validate Vaelir project strictly
         run: |
+          set -o pipefail
+          ./Godot_v4.5.1-stable_linux.x86_64 --headless --path VaelirPrototype --editor --quit 2>&1 | tee validate.log
+          if grep -E "SCRIPT ERROR|Parse Error|Compile Error|Failed to load script" validate.log; then
+            echo "Godot script validation failed"
+            exit 1
+          fi
+
+      - name: Export Windows build strictly
+        run: |
+          set -o pipefail
           mkdir -p VaelirPrototype/build
-          ./Godot_v4.5.1-stable_linux.x86_64 --headless --path VaelirPrototype --export-release "Windows Desktop" build/Vaelir-Bloodbound.exe
+          ./Godot_v4.5.1-stable_linux.x86_64 --headless --path VaelirPrototype --export-release "Windows Desktop" build/Vaelir-Bloodbound.exe 2>&1 | tee export.log
+          if grep -E "SCRIPT ERROR|Parse Error|Compile Error|Failed to load script|Project export .* failed" export.log; then
+            echo "Godot export reported errors"
+            exit 1
+          fi
+          test -s VaelirPrototype/build/Vaelir-Bloodbound.exe
 
       - name: Upload Windows build
         uses: actions/upload-artifact@v4

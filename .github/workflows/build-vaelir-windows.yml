@@ -13,6 +13,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Download real CC0 3D asset packs
+        run: |
+          set -e
+          mkdir -p VaelirPrototype/assets/external/{characters,village,monsters}
+          wget -q 'https://opengameart.org/sites/default/files/ultimate_animated_character_pack_by_quaternius.zip' -O /tmp/characters.zip
+          wget -q 'https://opengameart.org/sites/default/files/medieval_village_pack_-_dec_2020.zip' -O /tmp/village.zip
+          wget -q 'https://opengameart.org/sites/default/files/Animated%20Monster%20Pack%20by%20%40Quaternius.zip' -O /tmp/monsters.zip
+          unzip -q /tmp/characters.zip -d VaelirPrototype/assets/external/characters
+          unzip -q /tmp/village.zip -d VaelirPrototype/assets/external/village
+          unzip -q /tmp/monsters.zip -d VaelirPrototype/assets/external/monsters
+          echo '--- CHARACTER ASSETS ---'
+          find VaelirPrototype/assets/external/characters -type f | head -80
+          echo '--- VILLAGE ASSETS ---'
+          find VaelirPrototype/assets/external/village -type f | head -80
+          echo '--- MONSTER ASSETS ---'
+          find VaelirPrototype/assets/external/monsters -type f | head -80
+
       - name: Download Godot 4.5.1
         run: |
           wget -q https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip

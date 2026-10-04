@@ -1,0 +1,42 @@
+name: Build Vaelir Bloodbound Windows
+on:
+  push:
+    branches: [vaelir-dark-fantasy-prototype]
+    paths:
+      - 'VaelirPrototype/**'
+      - '.github/workflows/build-vaelir-windows.yml'
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Godot 4.5.1
+        run: |
+          wget -q https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
+          unzip -q Godot_v4.5.1-stable_linux.x86_64.zip
+          chmod +x Godot_v4.5.1-stable_linux.x86_64
+
+      - name: Install export templates
+        run: |
+          wget -q https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.5.1.stable"
+          unzip -q Godot_v4.5.1-stable_export_templates.tpz -d /tmp/godot-templates
+          cp -r /tmp/godot-templates/templates/* "$HOME/.local/share/godot/export_templates/4.5.1.stable/"
+
+      - name: Validate Vaelir project
+        run: ./Godot_v4.5.1-stable_linux.x86_64 --headless --path VaelirPrototype --editor --quit
+
+      - name: Export Windows build
+        run: |
+          mkdir -p build
+          ./Godot_v4.5.1-stable_linux.x86_64 --headless --path VaelirPrototype --export-release "Windows Desktop" build/Vaelir-Bloodbound.exe
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vaelir-Bloodbound-Windows
+          path: build/
+          if-no-files-found: error

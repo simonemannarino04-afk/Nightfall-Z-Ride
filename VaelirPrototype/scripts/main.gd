@@ -11,10 +11,12 @@ var dialogue_label: Label
 var objective_label: Label
 var health_bar: ProgressBar
 var map_panel: Panel
+var pause_label: Label
 var sword_voice_label: Label
 var intro_done := false
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_world()
 	_build_village()
 	_build_player_and_father()
@@ -23,9 +25,19 @@ func _ready() -> void:
 	_start_prologue()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_M and intro_done:
+	if not intro_done:
+		return
+	var map_pressed := event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_M
+	map_pressed = map_pressed or (event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_BACK)
+	if map_pressed and not get_tree().paused:
 		map_panel.visible = not map_panel.visible
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if map_panel.visible else Input.MOUSE_MODE_CAPTURED
+	var pause_pressed := event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_P
+	pause_pressed = pause_pressed or (event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_START)
+	if pause_pressed:
+		get_tree().paused = not get_tree().paused
+		pause_label.visible = get_tree().paused
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if get_tree().paused else Input.MOUSE_MODE_CAPTURED
 
 func _build_world() -> void:
 	var env := WorldEnvironment.new()
@@ -98,15 +110,17 @@ func _spawn_enemies() -> void:
 		var enemy = EnemyScript.new(); enemy.position = p; enemy.target = player; add_child(enemy)
 
 func _build_ui() -> void:
-	var canvas := CanvasLayer.new(); add_child(canvas)
-	objective_label = Label.new(); objective_label.position = Vector2(24,22); objective_label.size = Vector2(720,50); objective_label.add_theme_font_size_override("font_size",22); objective_label.text = "PROLOGO — Il sangue ricorda"; canvas.add_child(objective_label)
+	var canvas := CanvasLayer.new(); canvas.process_mode = Node.PROCESS_MODE_ALWAYS; add_child(canvas)
+	objective_label = Label.new(); objective_label.position = Vector2(24,22); objective_label.size = Vector2(900,50); objective_label.add_theme_font_size_override("font_size",22); objective_label.text = "PROLOGO — Il sangue ricorda"; canvas.add_child(objective_label)
 	health_bar = ProgressBar.new(); health_bar.position = Vector2(24,70); health_bar.size = Vector2(280,22); health_bar.max_value = 100; health_bar.value = 100; health_bar.show_percentage = false; canvas.add_child(health_bar)
-	var controls := Label.new(); controls.position = Vector2(24,105); controls.size = Vector2(500,80); controls.text = "WASD Muovi   Mouse Guarda   Click/Spazio Attacca   Shift Schiva   M Mappa"; controls.modulate = Color(0.78,0.78,0.82,0.9); canvas.add_child(controls)
+	var controls := Label.new(); controls.position = Vector2(24,105); controls.size = Vector2(1100,105); controls.text = "XBOX: LS Muovi  RS Camera  X Attacco  RT Pesante  LT Parata  B Schivata  A Interagisci\nY Potere Vaelir  LB/RB Bersaglio  L3 Corsa  R3 Lock-on  View Mappa  Menu Pausa"; controls.modulate = Color(0.78,0.78,0.82,0.9); canvas.add_child(controls)
 
 	dialogue_panel = Panel.new(); dialogue_panel.position = Vector2(250,610); dialogue_panel.size = Vector2(1100,190); dialogue_panel.visible = false; canvas.add_child(dialogue_panel)
 	dialogue_label = Label.new(); dialogue_label.position = Vector2(36,28); dialogue_label.size = Vector2(1020,135); dialogue_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; dialogue_label.add_theme_font_size_override("font_size",26); dialogue_panel.add_child(dialogue_label)
 
 	sword_voice_label = Label.new(); sword_voice_label.position = Vector2(320,530); sword_voice_label.size = Vector2(960,60); sword_voice_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; sword_voice_label.add_theme_font_size_override("font_size",24); sword_voice_label.modulate = Color("c9475b"); sword_voice_label.visible = false; canvas.add_child(sword_voice_label)
+
+	pause_label = Label.new(); pause_label.position = Vector2(620,350); pause_label.size = Vector2(360,100); pause_label.text = "PAUSA\nPremi Menu per continuare"; pause_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; pause_label.add_theme_font_size_override("font_size",30); pause_label.visible = false; canvas.add_child(pause_label)
 
 	map_panel = Panel.new(); map_panel.position = Vector2(390,120); map_panel.size = Vector2(820,620); map_panel.visible = false; canvas.add_child(map_panel)
 	var title := Label.new(); title.position = Vector2(30,20); title.text = "VALLE DI DRAEVEN — BORGO DI VELMORA"; title.add_theme_font_size_override("font_size",28); map_panel.add_child(title)

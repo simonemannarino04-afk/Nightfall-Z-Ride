@@ -4,19 +4,30 @@ on:
     branches: [boston-quarantine-overhaul]
   workflow_dispatch:
 jobs:
-  build:
+  build-windows:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Export Windows build
-        uses: firebelley/godot-export@v7.0.0
-        with:
-          godot_executable_download_url: https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
-          godot_export_templates_download_url: https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz
-          relative_project_path: ./
-          archive_output: true
+      - name: Download Godot 4.5.1
+        run: |
+          wget -q https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
+          unzip -q Godot_v4.5.1-stable_linux.x86_64.zip
+          chmod +x Godot_v4.5.1-stable_linux.x86_64
+      - name: Install export templates
+        run: |
+          wget -q https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.5.1.stable"
+          unzip -q Godot_v4.5.1-stable_export_templates.tpz -d /tmp/godot-templates
+          cp -r /tmp/godot-templates/templates/* "$HOME/.local/share/godot/export_templates/4.5.1.stable/"
+      - name: Validate project
+        run: ./Godot_v4.5.1-stable_linux.x86_64 --headless --path . --editor --quit
+      - name: Export Windows only
+        run: |
+          mkdir -p build
+          ./Godot_v4.5.1-stable_linux.x86_64 --headless --path . --export-release "Windows Desktop" build/Boston-Quarantine.exe
       - name: Upload Windows build
         uses: actions/upload-artifact@v4
         with:
           name: Boston-Quarantine-Windows
-          path: ./build/**
+          path: build/
+          if-no-files-found: error
